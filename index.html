@@ -292,13 +292,23 @@ input[type=range]::-webkit-slider-thumb{
 .t-o{border-color:rgba(240,120,48,.3);color:var(--bus);background:rgba(240,120,48,.06)}
 
 .qi-del{
-  position:absolute;top:8px;right:8px;width:20px;height:20px;
-  border-radius:5px;border:none;background:transparent;color:var(--gray);
+  width:26px;height:26px;
+  border-radius:6px;border:none;background:transparent;color:var(--gray);
   cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;
-  opacity:0;transition:all .1s
+  transition:all .1s;flex-shrink:0
 }
-.qi-card:hover .qi-del{opacity:1}
 .qi-del:hover{background:rgba(232,57,74,.1);color:var(--red)}
+.qi-edit{
+  width:26px;height:26px;
+  border-radius:6px;border:none;background:transparent;color:var(--gray);
+  cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;
+  transition:all .1s;flex-shrink:0
+}
+.qi-edit:hover{background:rgba(39,181,232,.12);color:var(--sky2)}
+.qi-actions{
+  display:flex;gap:4px;align-items:center;
+  opacity:0;transition:opacity .1s;
+}
 
 /* ── TOTALS ── */
 .q-totals{padding:13px 16px;border-top:1px solid var(--border);background:var(--off2)}
@@ -309,7 +319,8 @@ input[type=range]::-webkit-slider-thumb{
 .qt-note{font-size:11px;color:var(--gray);margin-top:6px;line-height:1.5;padding:8px 10px;background:rgba(39,181,232,.05);border:1px solid rgba(39,181,232,.15);border-radius:7px;display:none}
 .qt-note:not(:empty){display:block}
 
-.gst-toggle{
+.qi-card:hover .qi-actions{opacity:1}
+.qi-editing{border-color:var(--sky) !important;box-shadow:0 0 0 3px rgba(39,181,232,.12)}
   display:flex;align-items:center;justify-content:space-between;
   padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--r);
   cursor:pointer;user-select:none;background:#fff;margin-top:8px;transition:all .14s
@@ -800,13 +811,26 @@ input[type=range]::-webkit-slider-thumb{
 
     <!-- Totals -->
     <div class="q-totals" id="qTotals" style="display:none">
-      <div class="qt"><span>Subtotal (excl. GST)</span><span id="qSub">—</span></div>
-      <div class="qt" id="gstRow" style="display:none"><span>GST (10%)</span><span id="gstAmt">—</span></div>
+      <div class="qt"><span>Subtotal (excl. tax)</span><span id="qSub">—</span></div>
+      <div class="qt" id="gstRow" style="display:none"><span id="gstRowLbl">GST</span><span id="gstAmt">—</span></div>
       <div class="qt grand"><span>TOTAL</span><span id="qGrand">—</span></div>
       <div class="qt-note" id="qNote"></div>
+      <!-- GST toggle — label and rate update based on currency -->
       <div class="gst-toggle" id="gstTog" onclick="togGST()">
-        <span class="gst-lbl">Include GST (10%)</span>
+        <span class="gst-lbl" id="gstTogLbl">Include GST</span>
         <div class="sw"></div>
+      </div>
+      <!-- Custom GST rate for non-NZD/AUD currencies -->
+      <div id="gstCustomWrap" style="display:none;margin-top:8px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gray);margin-bottom:6px">Tax Rate %</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap" id="gstRateChips">
+          <div class="chip" onclick="setGSTrate(0,this)">None</div>
+          <div class="chip" onclick="setGSTrate(5,this)">5%</div>
+          <div class="chip" onclick="setGSTrate(7,this)">7%</div>
+          <div class="chip on" onclick="setGSTrate(10,this)">10%</div>
+          <div class="chip" onclick="setGSTrate(15,this)">15%</div>
+          <div class="chip" onclick="setGSTrate(20,this)">20%</div>
+        </div>
       </div>
     </div>
 
@@ -933,7 +957,7 @@ let ST={
   consultOn:false,cQty:1,cUnit:'days',
   resellerOn:false,rPct:15,
   vipOn:false,vipPct:15,vipLabel:'VIP Pricing',
-  qty:1,currency:'NZD',gst:false,
+  qty:1,currency:'NZD',gst:false,customGSTrate:10,
   items:[]
 };
 
@@ -1220,15 +1244,20 @@ function renderQItem(it){
   const unitLine=`${fmt(it.baseDisp,c)}/unit × ${it.qty}${it.consultDisp>0?' <span style="opacity:.6;font-size:10px">(incl. prep)</span>':''}`;
 
   return`<div class="qi-card ${sec}" id="qi_${it.id}">
-    <button class="qi-del" onclick="delItem(${it.id})">×</button>
     <div class="qi-top">
-      <div>
+      <div style="flex:1;min-width:0">
         <div class="qi-name">${it.name}</div>
         <div class="qi-unit">${unitLine} &nbsp;·&nbsp; ${DUR[it.duration]}</div>
       </div>
-      <div class="qi-price-col">
-        <div class="qi-total">${fmt(it.clientTotal,c)}</div>
-        ${nzdNote}
+      <div style="display:flex;align-items:flex-start;gap:6px;flex-shrink:0;margin-left:8px">
+        <div class="qi-price-col" style="text-align:right">
+          <div class="qi-total">${fmt(it.clientTotal,c)}</div>
+          ${nzdNote}
+        </div>
+        <div class="qi-actions">
+          <button class="qi-edit" title="Edit this item" onclick="editItem(${it.id})">✏️</button>
+          <button class="qi-del" title="Remove this item" onclick="delItem(${it.id})">🗑</button>
+        </div>
       </div>
     </div>
     ${descHtml}
@@ -1238,6 +1267,96 @@ function renderQItem(it){
 
 function delItem(id){
   ST.items=ST.items.filter(i=>i.id!==id);renderQ();
+}
+
+function editItem(id){
+  const it=ST.items.find(i=>i.id===id);
+  if(!it)return;
+
+  // Load everything back into the left panel
+  document.getElementById('iName').value=it.name;
+  document.getElementById('iDesc').value=it.desc||'';
+  document.getElementById('mainQty').value=it.qty;
+  document.getElementById('qtyLbl').textContent=
+    {hourly:'hours',halfday:'half-day sessions',day_no_travel:'days (no travel)',day_travel:'days (incl. travel)'}[it.duration]||'sessions / units';
+
+  // Sector
+  document.querySelectorAll('.sec').forEach(c=>c.className='sec');
+  const sEl=document.querySelector(`.sec[data-s="${it.sector}"]`);
+  if(sEl){const cls={edu:'e',bus:'b',gov:'g'}[it.sector];sEl.classList.add(cls);}
+  ST.sector=it.sector;
+
+  // Service
+  document.querySelectorAll('#serviceChips .chip').forEach(c=>c.classList.remove('on'));
+  const svEl=document.querySelector(`#serviceChips .chip[data-sv="${it.service}"]`);
+  if(svEl)svEl.classList.add('on');
+  ST.service=it.service;
+
+  // Platform
+  document.querySelectorAll('#platformChips .chip').forEach(c=>c.classList.remove('on'));
+  if(it.platform){
+    document.querySelectorAll('#platformChips .chip').forEach(c=>{
+      if(c.dataset&&c.getAttribute('onclick')&&c.getAttribute('onclick').includes(`'${it.platform}'`))c.classList.add('on');
+    });
+  }
+  ST.platform=it.platform;
+
+  // Delivery
+  ST.delivery=it.delivery;
+  document.getElementById('dc-online').classList.toggle('on',it.delivery==='online');
+  document.getElementById('dc-inperson').classList.toggle('on',it.delivery==='inperson');
+  document.getElementById('travelNote').style.display=it.delivery==='inperson'?'block':'none';
+  const dtRow=document.getElementById('row_dt');
+  dtRow.classList.toggle('disabled',it.delivery==='online');
+
+  // Duration
+  ST.duration=it.duration;
+  document.querySelectorAll('.rt-row').forEach(r=>{
+    r.classList.toggle('on',r.dataset.d===it.duration);
+  });
+
+  // Consulting
+  ST.consultOn=it.consultOn;
+  ST.cQty=it.cQty; ST.cUnit=it.cUnit;
+  document.getElementById('cQty').value=it.cQty;
+  document.getElementById('cu_h').classList.toggle('on',it.cUnit==='hours');
+  document.getElementById('cu_d').classList.toggle('on',it.cUnit==='days');
+  const cBox=document.getElementById('cBox');
+  cBox.className='tog-box'+(it.consultOn?' open consult-open':'');
+
+  // Reseller
+  ST.resellerOn=it.resellerOn; ST.rPct=it.rPct;
+  document.getElementById('rSlider').value=it.rPct;
+  document.getElementById('rVal').textContent=it.rPct+'%';
+  const rBox=document.getElementById('rBox');
+  rBox.className='tog-box'+(it.resellerOn?' open reseller-open':'');
+
+  // VIP
+  ST.vipOn=it.vipOn; ST.vipPct=it.vipPct; ST.vipLabel=it.vipLabel;
+  document.getElementById('vipName').value=it.vipLabel||'VIP Pricing';
+  document.getElementById('vipSlider').value=it.vipPct;
+  document.getElementById('vipVal').textContent=it.vipPct+'%';
+  document.querySelectorAll('.vpc').forEach(c=>c.classList.toggle('on',parseInt(c.textContent)===it.vipPct));
+  const vBox=document.getElementById('vipBox');
+  vBox.className='tog-box'+(it.vipOn?' open vip-open':'');
+
+  // Currency
+  ST.currency=it.currency;
+  document.getElementById('currSel').value=it.currency;
+
+  // Remove the item from the list — it's now "in progress" in the editor
+  ST.items=ST.items.filter(i=>i.id!==id);
+  renderQ();
+  updRateTable();
+  recalc();
+
+  // Highlight the left panel and scroll to top
+  const card=document.querySelector('.left .card');
+  card.style.transition='box-shadow .3s';
+  card.style.boxShadow='0 0 0 3px var(--sky)';
+  setTimeout(()=>card.style.boxShadow='',2000);
+  document.querySelector('.left').scrollIntoView({behavior:'smooth',block:'start'});
+  toast('✏️ Item loaded — edit and re-add to quote');
 }
 
 function updTotals(){
@@ -1251,17 +1370,23 @@ function updTotals(){
   const sub=mixed
     ?ST.items.reduce((a,i)=>a+i.clientNZD,0)
     :ST.items.reduce((a,i)=>a+i.clientTotal,0);
-  const gst=ST.gst?sub*.1:0;
+
+  // Smart GST rate
+  const gstRate=getGSTrate(dc)/100;
+  const gst=ST.gst?sub*gstRate:0;
   const grand=sub+gst;
 
   // Always compute NZD equivalent for non-NZD quotes
   const subNZD=mixed?sub:ST.items.reduce((a,i)=>a+i.clientNZD,0);
-  const grandNZD=ST.gst?subNZD*1.1:subNZD;
+  const grandNZD=ST.gst?subNZD*(1+gstRate):subNZD;
 
   document.getElementById('qSub').textContent=fmt(sub,dc);
   document.getElementById('gstAmt').textContent=fmt(gst,dc);
   document.getElementById('qGrand').textContent=fmt(grand,dc);
   document.getElementById('gstRow').style.display=ST.gst?'flex':'none';
+
+  // Update GST UI labels
+  updGSTui();
 
   // NZD note — always show when quoting in foreign currency
   const noteEl=document.getElementById('qNote');
@@ -1283,18 +1408,57 @@ function updTotals(){
   }
 }
 
+// ─── GST HELPERS ───
+// Returns the correct GST rate for a given currency
+// NZD = 15%, AUD = 10%, others = user-selectable (default 10%)
+function getGSTrate(currency){
+  if(currency==='NZD') return 15;
+  if(currency==='AUD') return 10;
+  return ST.customGSTrate||10;
+}
+
+function getGSTlabel(currency,rate){
+  if(currency==='NZD') return `Include GST (${rate}% NZ)`;
+  if(currency==='AUD') return `Include GST (${rate}% AU)`;
+  return `Include Tax (${rate}%)`;
+}
+
+function setGSTrate(rate,el){
+  ST.customGSTrate=rate;
+  document.querySelectorAll('#gstRateChips .chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  updTotals();
+}
+
+function updGSTui(){
+  // Figure out the display currency
+  const currs=[...new Set(ST.items.map(i=>i.currency))];
+  const dc=currs.length>1?'NZD':currs[0]||ST.currency;
+  const rate=getGSTrate(dc);
+  const isFixed=(dc==='NZD'||dc==='AUD');
+
+  // Update toggle label
+  document.getElementById('gstTogLbl').textContent=getGSTlabel(dc,rate);
+  // Show custom rate picker only for other currencies
+  document.getElementById('gstCustomWrap').style.display=(!isFixed&&ST.gst)?'block':'none';
+  // Update row label
+  const rateUsed=isFixed?rate:(ST.customGSTrate||10);
+  document.getElementById('gstRowLbl').textContent=
+    dc==='NZD'?`GST (${rateUsed}% NZ)`:dc==='AUD'?`GST (${rateUsed}% AU)`:`Tax (${rateUsed}%)`;
+  return rateUsed;
+}
+
 function togGST(){
   ST.gst=!ST.gst;
   const tog=document.getElementById('gstTog');
   const sw=tog.querySelector('.sw');
   tog.classList.toggle('on',ST.gst);
-  sw.style.background=ST.gst?'var(--sky)':'';
-  sw.style.setProperty('',ST.gst?'var(--sky)':'');
-  // manual after position via class hack
-  if(ST.gst){sw.style.cssText='background:var(--sky)'}
-  else{sw.style.cssText=''}
-  // ugh - just toggle a class
-  tog.classList.toggle('gst-on',ST.gst);
+  sw.style.cssText=ST.gst?'background:var(--sky)':'';
+  // Show custom picker if relevant
+  const currs=[...new Set(ST.items.map(i=>i.currency))];
+  const dc=currs.length>1?'NZD':currs[0]||ST.currency;
+  const isFixed=(dc==='NZD'||dc==='AUD');
+  document.getElementById('gstCustomWrap').style.display=(!isFixed&&ST.gst)?'block':'none';
   updTotals();
 }
 
@@ -1365,7 +1529,7 @@ function copyQ(){
   const dc=[...new Set(ST.items.map(i=>i.currency))].length>1?'NZD':ST.items[0].currency;
   const dispSub=dc==='NZD'?sub:ST.items.reduce((a,i)=>a+i.clientTotal,0);
   lines.push('\n'+'─'.repeat(52));
-  lines.push(`TOTAL: ${fmt(ST.gst?dispSub*1.1:dispSub,dc)} ${dc}${ST.gst?' (incl. GST)':' (excl. GST)'}`);
+  lines.push(`TOTAL: ${fmt(ST.gst?dispSub*(1+getGSTrate(dc)/100):dispSub,dc)} ${dc}${ST.gst?' (incl. tax)':' (excl. tax)'}`);
   navigator.clipboard.writeText(lines.join('\n')).then(()=>toast('✓ Copied')).catch(()=>toast('⚠ Copy failed'));
 }
 
@@ -1450,16 +1614,18 @@ function buildQWILRTable(){
   // Totals
   const sub=mixed?ST.items.reduce((a,i)=>a+i.clientNZD,0):ST.items.reduce((a,i)=>a+i.clientTotal,0);
   const subNZD=ST.items.reduce((a,i)=>a+i.clientNZD,0);
-  const gst=ST.gst?sub*.1:0;
+  const gstRate=getGSTrate(dc)/100;
+  const gst=ST.gst?sub*gstRate:0;
   const grand=sub+gst;
-  const grandNZD=ST.gst?subNZD*1.1:subNZD;
+  const grandNZD=ST.gst?subNZD*(1+gstRate):subNZD;
+  const gstLabel=dc==='NZD'?'GST (15% NZ)':dc==='AUD'?'GST (10% AU)':`Tax (${ST.customGSTrate||10}%)`;
   const nzdNote=dc!=='NZD'?`<div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:6px">≈ ${fmt(grandNZD,'NZD')} NZD (at ${FX_STATUS})</div>`:'';
 
   document.getElementById('qwilrTotals').innerHTML=`
     <div style="display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,.6);margin-bottom:5px">
       <span>Subtotal</span><span>${fmt(sub,dc)}</span>
     </div>
-    ${ST.gst?`<div style="display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,.6);margin-bottom:5px"><span>GST (10%)</span><span>${fmt(gst,dc)}</span></div>`:''}
+    ${ST.gst?`<div style="display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,.6);margin-bottom:5px"><span>${gstLabel}</span><span>${fmt(gst,dc)}</span></div>`:''}
     <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:800;color:var(--sky);padding-top:8px;border-top:1px solid rgba(255,255,255,.12)">
       <span>TOTAL ${dc}</span><span>${fmt(grand,dc)}</span>
     </div>
@@ -1502,7 +1668,7 @@ function copyQWILR(){
 // ─── RESET (updated to include VIP) ───
 function resetAll(){
   if(!confirm('Reset everything?'))return;
-  ST={sector:null,service:null,platform:null,delivery:null,duration:null,consultOn:false,cQty:1,cUnit:'days',resellerOn:false,rPct:15,vipOn:false,vipPct:15,vipLabel:'VIP Pricing',qty:1,currency:ST.currency,gst:false,items:[]};
+  ST={sector:null,service:null,platform:null,delivery:null,duration:null,consultOn:false,cQty:1,cUnit:'days',resellerOn:false,rPct:15,vipOn:false,vipPct:15,vipLabel:'VIP Pricing',qty:1,currency:ST.currency,gst:false,customGSTrate:10,items:[]};
   document.querySelectorAll('.sec').forEach(c=>c.className='sec');
   document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
   document.querySelectorAll('.rt-row').forEach(r=>r.classList.remove('on','disabled'));
