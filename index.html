@@ -135,7 +135,17 @@ textarea.ti{resize:none;height:68px;line-height:1.55}
 .chip:hover{border-color:var(--border2);background:var(--off)}
 .chip.on{border-color:var(--sky);background:rgba(39,181,232,.07);color:var(--sky2);font-weight:600}
 
-/* ── DELIVERY CHIPS (2 options, full width) ── */
+/* ── PLATFORM CHIPS with logos ── */
+.pchip{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:7px 14px 7px 10px;border-radius:20px;border:1.5px solid var(--border);
+  background:#fff;color:var(--navy);font-size:12px;font-weight:500;
+  cursor:pointer;transition:all .14s var(--ease);user-select:none
+}
+.pchip:hover{border-color:var(--border2);background:var(--off)}
+.pchip.on{border-color:var(--sky);background:rgba(39,181,232,.07);color:var(--sky2);font-weight:600}
+.pchip svg{width:16px;height:16px;flex-shrink:0}
+.pchip-multi-hint{font-size:10px;color:var(--gray);margin-top:5px;font-style:italic}
 .delivery-chips{display:grid;grid-template-columns:1fr 1fr;gap:7px}
 .dchip{
   padding:11px 8px;border-radius:var(--r);border:2px solid var(--border);
@@ -588,17 +598,53 @@ input[type=range]::-webkit-slider-thumb{
         </div>
       </div>
 
-      <!-- PLATFORM -->
+      <!-- PLATFORM (multi-select) -->
       <div class="field">
         <div class="lbl">Platform</div>
-        <div class="chips">
-          <div class="chip" onclick="setChip('platform','google',this)">🔵 Google</div>
-          <div class="chip" onclick="setChip('platform','microsoft',this)">🟦 Microsoft</div>
-          <div class="chip" onclick="setChip('platform','apple',this)">⬛ Apple</div>
-          <div class="chip" onclick="setChip('platform','canva',this)">🟣 Canva</div>
-          <div class="chip" onclick="setChip('platform','monday',this)">🔴 monday.com</div>
-          <div class="chip" onclick="setChip('platform','custom',this)">⚙️ Custom</div>
+        <div class="chips" id="platformChips">
+          <div class="pchip" data-plat="google" onclick="togglePlatform('google',this)">
+            <svg viewBox="0 0 24 24" fill="none" style="width:16px;height:16px;flex-shrink:0">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>Google
+          </div>
+          <div class="pchip" data-plat="microsoft" onclick="togglePlatform('microsoft',this)">
+            <svg viewBox="0 0 21 21" fill="none" style="width:16px;height:16px;flex-shrink:0">
+              <rect x="1" y="1" width="9" height="9" fill="#F25022"/>
+              <rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
+              <rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
+              <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+            </svg>Microsoft
+          </div>
+          <div class="pchip" data-plat="apple" onclick="togglePlatform('apple',this)">
+            <svg viewBox="0 0 24 24" style="width:16px;height:16px;flex-shrink:0">
+              <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" fill="var(--navy)"/>
+            </svg>Apple
+          </div>
+          <div class="pchip" data-plat="canva" onclick="togglePlatform('canva',this)">
+            <svg viewBox="0 0 24 24" fill="none" style="width:16px;height:16px;flex-shrink:0">
+              <circle cx="12" cy="12" r="11" fill="#7D2AE8"/>
+              <path d="M15.5 8.5C14.7 7.6 13.4 7 12 7c-2.8 0-5 2.2-5 5s2.2 5 5 5c1.4 0 2.7-.6 3.5-1.5" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/>
+              <circle cx="15.5" cy="12" r="1.8" fill="#00C4CC"/>
+            </svg>Canva
+          </div>
+          <div class="pchip" data-plat="monday" onclick="togglePlatform('monday',this)">
+            <svg viewBox="0 0 24 24" fill="none" style="width:16px;height:16px;flex-shrink:0">
+              <ellipse cx="5.5" cy="12" rx="3.5" ry="5" fill="#FF3D57"/>
+              <ellipse cx="12" cy="12" rx="3.5" ry="5" fill="#FFCB00"/>
+              <ellipse cx="18.5" cy="12" rx="3.5" ry="5" fill="#00CA72"/>
+            </svg>monday.com
+          </div>
+          <div class="pchip" data-plat="custom" onclick="togglePlatform('custom',this)">
+            <svg viewBox="0 0 24 24" fill="none" style="width:16px;height:16px;flex-shrink:0">
+              <circle cx="12" cy="12" r="3" stroke="var(--gray)" stroke-width="1.5"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="var(--gray)" stroke-width="1.5"/>
+            </svg>Custom
+          </div>
         </div>
+        <div class="pchip-multi-hint">Select one or more — e.g. Microsoft + Google for blended engagements</div>
       </div>
 
       <!-- DELIVERY MODE (Online / In-Person only) -->
@@ -953,7 +999,7 @@ const CSYM={NZD:'$',AUD:'$',USD:'$',GBP:'£',EUR:'€',SGD:'$'};
 
 // ─── STATE ───
 let ST={
-  sector:null,service:null,platform:null,delivery:null,duration:null,
+  sector:null,service:null,platforms:[],delivery:null,duration:null,
   consultOn:false,cQty:1,cUnit:'days',
   resellerOn:false,rPct:15,
   vipOn:false,vipPct:15,vipLabel:'VIP Pricing',
@@ -1025,6 +1071,26 @@ function setChip(group,val,el){
   ST[group]=val;
   el.closest('.chips').querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
   el.classList.add('on');
+  // Auto-fill item name when service type is selected (if field is empty or unchanged)
+  if(group==='service'){
+    const nameEl=document.getElementById('iName');
+    const current=nameEl.value.trim();
+    const prevNames=Object.values(SVC);
+    if(!current||prevNames.includes(current)){
+      nameEl.value=SVC[val];
+    }
+  }
+  recalc();
+}
+
+// ─── PLATFORM MULTI-SELECT ───
+function togglePlatform(val,el){
+  el.classList.toggle('on');
+  if(el.classList.contains('on')){
+    if(!ST.platforms.includes(val)) ST.platforms.push(val);
+  } else {
+    ST.platforms=ST.platforms.filter(p=>p!==val);
+  }
   recalc();
 }
 
@@ -1173,6 +1239,14 @@ function recalc(){
 // ─── ADD ITEM ───
 const SVC={training:'Training & Adoption',audit:'Workflow Audit & Report',infra:'Infrastructure Build'};
 const PLAT={google:'Google',microsoft:'Microsoft',apple:'Apple',canva:'Canva',monday:'monday.com',custom:'Custom'};
+const PLAT_LOGO={
+  google:`<svg viewBox="0 0 24 24" fill="none" style="width:11px;height:11px;vertical-align:middle;margin-right:3px"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>`,
+  microsoft:`<svg viewBox="0 0 21 21" fill="none" style="width:11px;height:11px;vertical-align:middle;margin-right:3px"><rect x="1" y="1" width="9" height="9" fill="#F25022"/><rect x="11" y="1" width="9" height="9" fill="#7FBA00"/><rect x="1" y="11" width="9" height="9" fill="#00A4EF"/><rect x="11" y="11" width="9" height="9" fill="#FFB900"/></svg>`,
+  apple:`<svg viewBox="0 0 24 24" style="width:11px;height:11px;vertical-align:middle;margin-right:3px"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" fill="currentColor"/></svg>`,
+  canva:`<svg viewBox="0 0 24 24" fill="none" style="width:11px;height:11px;vertical-align:middle;margin-right:3px"><circle cx="12" cy="12" r="11" fill="#7D2AE8"/><path d="M15.5 8.5C14.7 7.6 13.4 7 12 7c-2.8 0-5 2.2-5 5s2.2 5 5 5c1.4 0 2.7-.6 3.5-1.5" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/><circle cx="15.5" cy="12" r="1.8" fill="#00C4CC"/></svg>`,
+  monday:`<svg viewBox="0 0 24 24" fill="none" style="width:11px;height:11px;vertical-align:middle;margin-right:3px"><ellipse cx="5.5" cy="12" rx="3.5" ry="5" fill="#FF3D57"/><ellipse cx="12" cy="12" rx="3.5" ry="5" fill="#FFCB00"/><ellipse cx="18.5" cy="12" rx="3.5" ry="5" fill="#00CA72"/></svg>`,
+  custom:`<svg viewBox="0 0 24 24" fill="none" style="width:11px;height:11px;vertical-align:middle;margin-right:3px"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="1.5"/></svg>`,
+};
 const DUR={hourly:'Hourly',halfday:'Half Day',day_no_travel:'Full Day (no travel)',day_travel:'Full Day (w/ travel)'};
 const SEC={edu:'Education',bus:'Business',gov:'Government'};
 const DELV={online:'Online',inperson:'In-Person'};
@@ -1188,7 +1262,7 @@ function addItem(){
     id:Date.now(),
     name:document.getElementById('iName').value.trim()||SVC[ST.service],
     desc:document.getElementById('iDesc').value.trim(),
-    sector:ST.sector,service:ST.service,platform:ST.platform,
+    sector:ST.sector,service:ST.service,platforms:[...ST.platforms],
     delivery:ST.delivery,duration:ST.duration,
     consultOn:ST.consultOn,cQty:ST.cQty,cUnit:ST.cUnit,
     resellerOn:ST.resellerOn,rPct:ST.rPct,
@@ -1232,7 +1306,7 @@ function renderQItem(it){
   const tags=[
     `<span class="tag ${tcls}">${SEC[sec]}</span>`,
     `<span class="tag t-n">${SVC[it.service]}</span>`,
-    it.platform?`<span class="tag t-n">${PLAT[it.platform]}</span>`:'',
+    ...(it.platforms||[]).map(p=>`<span class="tag t-n">${PLAT_LOGO[p]||''}${PLAT[p]||p}</span>`),
     it.delivery?`<span class="tag t-n">${DELV[it.delivery]}</span>`:'',
     `<span class="tag t-n">${DUR[it.duration]}</span>`,
     it.resellerOn?`<span class="tag t-g">Partner −${it.rPct}%</span>`:'',
@@ -1292,14 +1366,11 @@ function editItem(id){
   if(svEl)svEl.classList.add('on');
   ST.service=it.service;
 
-  // Platform
-  document.querySelectorAll('#platformChips .chip').forEach(c=>c.classList.remove('on'));
-  if(it.platform){
-    document.querySelectorAll('#platformChips .chip').forEach(c=>{
-      if(c.dataset&&c.getAttribute('onclick')&&c.getAttribute('onclick').includes(`'${it.platform}'`))c.classList.add('on');
-    });
-  }
-  ST.platform=it.platform;
+  // Platforms (multi-select)
+  ST.platforms=[...(it.platforms||[])];
+  document.querySelectorAll('#platformChips .pchip').forEach(c=>{
+    c.classList.toggle('on', ST.platforms.includes(c.dataset.plat));
+  });
 
   // Delivery
   ST.delivery=it.delivery;
@@ -1520,7 +1591,7 @@ function copyQ(){
     const c=it.currency;
     lines.push(`\n${i+1}. ${it.name}`);
     if(it.desc)lines.push(`   ${it.desc}`);
-    lines.push(`   ${SEC[it.sector]} · ${SVC[it.service]}${it.platform?' · '+PLAT[it.platform]:''}${it.delivery?' · '+DELV[it.delivery]:''}`);
+    lines.push(`   ${SEC[it.sector]} · ${SVC[it.service]}${it.platforms&&it.platforms.length?' · '+(it.platforms.map(p=>PLAT[p]).join(' + ')):''}`+`${it.delivery?' · '+DELV[it.delivery]:''}`);
     lines.push(`   ${DUR[it.duration]} × ${it.qty}   →   ${fmt(it.baseDisp,c)}/unit`);
     if(it.resellerOn)lines.push(`   Partner −${it.rPct}%: −${fmt(it.resellerCut,c)} (partner receives ${fmt(it.resellerCut,c)})`);
     lines.push(`   Total: ${fmt(it.clientTotal,c)}${c!=='NZD'?' (≈ '+fmt(it.clientNZD,'NZD')+' NZD)':''}`);
@@ -1581,7 +1652,7 @@ function buildQWILRTable(){
     const baseRow=`
       <tr>
         <td><div class="qi-preview-name">${it.name}</div></td>
-        <td><div class="qi-preview-desc">${it.desc||SVC[it.service]+' · '+DUR[it.duration]+(it.delivery?' · '+DELV[it.delivery]:'')}</div></td>
+        <td><div class="qi-preview-desc">${it.desc||(SVC[it.service]+(it.platforms&&it.platforms.length?' · '+(it.platforms.map(p=>PLAT[p]).join(' + ')):''))+' · '+DUR[it.duration]+(it.delivery?' · '+DELV[it.delivery]:'')}</div></td>
         <td>${it.qty}</td>
         <td>${fmt(it.baseDisp,c)}</td>
         <td>${fmt(it.delivTotal+it.consultDisp,c)}</td>
@@ -1668,9 +1739,10 @@ function copyQWILR(){
 // ─── RESET (updated to include VIP) ───
 function resetAll(){
   if(!confirm('Reset everything?'))return;
-  ST={sector:null,service:null,platform:null,delivery:null,duration:null,consultOn:false,cQty:1,cUnit:'days',resellerOn:false,rPct:15,vipOn:false,vipPct:15,vipLabel:'VIP Pricing',qty:1,currency:ST.currency,gst:false,customGSTrate:10,items:[]};
+  ST={sector:null,service:null,platforms:[],delivery:null,duration:null,consultOn:false,cQty:1,cUnit:'days',resellerOn:false,rPct:15,vipOn:false,vipPct:15,vipLabel:'VIP Pricing',qty:1,currency:ST.currency,gst:false,customGSTrate:10,items:[]};
   document.querySelectorAll('.sec').forEach(c=>c.className='sec');
   document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  document.querySelectorAll('.pchip').forEach(c=>c.classList.remove('on'));
   document.querySelectorAll('.rt-row').forEach(r=>r.classList.remove('on','disabled'));
   document.querySelectorAll('.dchip').forEach(d=>d.classList.remove('on'));
   document.getElementById('travelNote').style.display='none';
@@ -1690,6 +1762,10 @@ function resetAll(){
   document.getElementById('iName').value='';
   document.getElementById('iDesc').value='';
   document.getElementById('qtyLbl').textContent='sessions / units';
+  // Reset GST toggle UI
+  const gstTog=document.getElementById('gstTog');
+  if(gstTog){gstTog.classList.remove('on');gstTog.querySelector('.sw').style.cssText='';}
+  document.getElementById('gstCustomWrap').style.display='none';
   renderQ();recalc();toast('✓ Reset');
 }
 function clearQ(){
