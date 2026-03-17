@@ -135,6 +135,30 @@ textarea.ti{resize:none;height:68px;line-height:1.55}
 .chip:hover{border-color:var(--border2);background:var(--off)}
 .chip.on{border-color:var(--sky);background:rgba(39,181,232,.07);color:var(--sky2);font-weight:600}
 
+/* ── SERVICE CARDS (the 3 products) ── */
+.svc-card{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 14px;border-radius:var(--r);
+  border:2px solid var(--border);background:#fff;
+  cursor:pointer;transition:all .14s var(--ease);position:relative;
+  user-select:none
+}
+.svc-card:hover{border-color:var(--border2);background:var(--off)}
+.svc-card.on{border-color:var(--sky);background:rgba(39,181,232,.05)}
+.svc-icon{font-size:20px;flex-shrink:0}
+.svc-info{flex:1}
+.svc-name{font-size:13px;font-weight:700;color:var(--navy)}
+.svc-card.on .svc-name{color:var(--sky2)}
+.svc-sub{font-size:11px;color:var(--gray);margin-top:1px}
+.svc-check{
+  width:18px;height:18px;border-radius:50%;
+  background:var(--sky);color:#fff;
+  font-size:9px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;opacity:0;transition:opacity .14s
+}
+.svc-card.on .svc-check{opacity:1}
+
 /* ── PLATFORM CHIPS with logos ── */
 .pchip{
   display:inline-flex;align-items:center;gap:7px;
@@ -551,16 +575,35 @@ input[type=range]::-webkit-slider-thumb{
     </div>
     <div class="card-body">
 
-      <!-- ITEM NAME -->
+      <!-- SERVICE TYPE (the product — this IS the line item) -->
       <div class="field">
-        <div class="lbl">Item Name</div>
-        <input class="ti ti-lg" id="iName" placeholder="e.g. Phase 1: Discovery & Audit" oninput="recalc()">
-      </div>
-
-      <!-- DESCRIPTION -->
-      <div class="field">
-        <div class="lbl">Description (shown in quote)</div>
-        <textarea class="ti" id="iDesc" placeholder="e.g. 4-week stakeholder interviews, SharePoint audit across ~150 sites, and delivery of Migration Roadmap…" oninput="recalc()"></textarea>
+        <div class="lbl">Product / Service</div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <div class="svc-card" data-sv="training" onclick="selectService('training',this)">
+            <div class="svc-check">✓</div>
+            <div class="svc-icon">📋</div>
+            <div class="svc-info">
+              <div class="svc-name">Training &amp; Adoption</div>
+              <div class="svc-sub">Facilitated learning, onboarding &amp; behaviour change</div>
+            </div>
+          </div>
+          <div class="svc-card" data-sv="audit" onclick="selectService('audit',this)">
+            <div class="svc-check">✓</div>
+            <div class="svc-icon">🔍</div>
+            <div class="svc-info">
+              <div class="svc-name">Workflow Audit &amp; Report</div>
+              <div class="svc-sub">Discovery, analysis &amp; strategic recommendations</div>
+            </div>
+          </div>
+          <div class="svc-card" data-sv="infra" onclick="selectService('infra',this)">
+            <div class="svc-check">✓</div>
+            <div class="svc-icon">🏗</div>
+            <div class="svc-info">
+              <div class="svc-name">Infrastructure Build</div>
+              <div class="svc-sub">Environment setup, configuration &amp; deployment</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- SECTOR -->
@@ -571,13 +614,13 @@ input[type=range]::-webkit-slider-thumb{
             <div class="sec-tick">✓</div>
             <div class="sec-icon">🎓</div>
             <div class="sec-name">Education</div>
-            <div class="sec-sub">Schools & Institutes</div>
+            <div class="sec-sub">Schools &amp; Institutes</div>
           </div>
           <div class="sec" data-s="bus" onclick="setSector('bus',this)">
             <div class="sec-tick">✓</div>
             <div class="sec-icon">💼</div>
             <div class="sec-name">Business</div>
-            <div class="sec-sub">Corporate & SME</div>
+            <div class="sec-sub">Corporate &amp; SME</div>
           </div>
           <div class="sec" data-s="gov" onclick="setSector('gov',this)">
             <div class="sec-tick">✓</div>
@@ -585,16 +628,6 @@ input[type=range]::-webkit-slider-thumb{
             <div class="sec-name">Government</div>
             <div class="sec-sub">Public Sector</div>
           </div>
-        </div>
-      </div>
-
-      <!-- SERVICE TYPE -->
-      <div class="field">
-        <div class="lbl">Service Type</div>
-        <div class="chips">
-          <div class="chip" data-sv="training" onclick="setChip('service','training',this)">📋 Training & Adoption</div>
-          <div class="chip" data-sv="audit" onclick="setChip('service','audit',this)">🔍 Workflow Audit & Report</div>
-          <div class="chip" data-sv="infra" onclick="setChip('service','infra',this)">🏗 Infrastructure Build</div>
         </div>
       </div>
 
@@ -1066,20 +1099,19 @@ function setSector(s,el){
   updRateTable();recalc();
 }
 
-// ─── CHIPS ───
+// ─── SERVICE SELECTION ───
+function selectService(val,el){
+  ST.service=val;
+  document.querySelectorAll('.svc-card').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  recalc();
+}
+
+// ─── CHIPS (sector etc) ───
 function setChip(group,val,el){
   ST[group]=val;
   el.closest('.chips').querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
   el.classList.add('on');
-  // Auto-fill item name when service type is selected (if field is empty or unchanged)
-  if(group==='service'){
-    const nameEl=document.getElementById('iName');
-    const current=nameEl.value.trim();
-    const prevNames=Object.values(SVC);
-    if(!current||prevNames.includes(current)){
-      nameEl.value=SVC[val];
-    }
-  }
   recalc();
 }
 
@@ -1260,8 +1292,7 @@ function addItem(){
 
   const item={
     id:Date.now(),
-    name:document.getElementById('iName').value.trim()||SVC[ST.service],
-    desc:document.getElementById('iDesc').value.trim(),
+    name:SVC[ST.service],
     sector:ST.sector,service:ST.service,platforms:[...ST.platforms],
     delivery:ST.delivery,duration:ST.duration,
     consultOn:ST.consultOn,cQty:ST.cQty,cUnit:ST.cUnit,
@@ -1274,13 +1305,8 @@ function addItem(){
     clientTotal:p.clientTotal,clientNZD:p.clientNZD,
   };
   ST.items.push(item);
-  // Auto-fill quote client from first item name if blank
-  const qc=document.getElementById('qClient');
-  if(!qc.value&&document.getElementById('iName').value)qc.value=document.getElementById('iName').value.split('–')[0].trim();
   renderQ();
   toast('✓ Line item added');
-  document.getElementById('iName').value='';
-  document.getElementById('iDesc').value='';
 }
 
 // ─── RENDER QUOTE ───
@@ -1313,15 +1339,18 @@ function renderQItem(it){
     it.vipOn?`<span class="tag" style="border-color:rgba(245,166,35,.35);color:#c47d00;background:rgba(245,166,35,.08)">✨ ${it.vipLabel} −${it.vipPct}%</span>`:'',
   ].filter(Boolean).join('');
 
-  const nzdNote=c!=='NZD'?`<div class="qi-nzd">≈ ${fmt(it.clientNZD,'NZD')} NZD</div>`:'';
-  const descHtml=it.desc?`<div class="qi-desc">${it.desc}</div>`:'';
+  const platStr=(it.platforms&&it.platforms.length)
+    ? it.platforms.map(p=>PLAT[p]).join(' + ')
+    : '';
   const unitLine=`${fmt(it.baseDisp,c)}/unit × ${it.qty}${it.consultDisp>0?' <span style="opacity:.6;font-size:10px">(incl. prep)</span>':''}`;
+
+  const nzdNote=c!=='NZD'?`<div class="qi-nzd">≈ ${fmt(it.clientNZD,'NZD')} NZD</div>`:'';
 
   return`<div class="qi-card ${sec}" id="qi_${it.id}">
     <div class="qi-top">
       <div style="flex:1;min-width:0">
-        <div class="qi-name">${it.name}</div>
-        <div class="qi-unit">${unitLine} &nbsp;·&nbsp; ${DUR[it.duration]}</div>
+        <div class="qi-name">${SVC[it.service]}${platStr?' <span style="font-weight:400;color:var(--gray)">·</span> '+platStr:''}</div>
+        <div class="qi-unit">${unitLine} &nbsp;·&nbsp; ${DUR[it.duration]}${it.delivery?' &nbsp;·&nbsp; '+DELV[it.delivery]:''}</div>
       </div>
       <div style="display:flex;align-items:flex-start;gap:6px;flex-shrink:0;margin-left:8px">
         <div class="qi-price-col" style="text-align:right">
@@ -1334,7 +1363,6 @@ function renderQItem(it){
         </div>
       </div>
     </div>
-    ${descHtml}
     <div class="tags">${tags}</div>
   </div>`;
 }
@@ -1347,24 +1375,21 @@ function editItem(id){
   const it=ST.items.find(i=>i.id===id);
   if(!it)return;
 
-  // Load everything back into the left panel
-  document.getElementById('iName').value=it.name;
-  document.getElementById('iDesc').value=it.desc||'';
   document.getElementById('mainQty').value=it.qty;
   document.getElementById('qtyLbl').textContent=
     {hourly:'hours',halfday:'half-day sessions',day_no_travel:'days (no travel)',day_travel:'days (incl. travel)'}[it.duration]||'sessions / units';
+
+  // Service (card selection)
+  document.querySelectorAll('.svc-card').forEach(c=>c.classList.remove('on'));
+  const svEl=document.querySelector(`.svc-card[data-sv="${it.service}"]`);
+  if(svEl)svEl.classList.add('on');
+  ST.service=it.service;
 
   // Sector
   document.querySelectorAll('.sec').forEach(c=>c.className='sec');
   const sEl=document.querySelector(`.sec[data-s="${it.sector}"]`);
   if(sEl){const cls={edu:'e',bus:'b',gov:'g'}[it.sector];sEl.classList.add(cls);}
   ST.sector=it.sector;
-
-  // Service
-  document.querySelectorAll('#serviceChips .chip').forEach(c=>c.classList.remove('on'));
-  const svEl=document.querySelector(`#serviceChips .chip[data-sv="${it.service}"]`);
-  if(svEl)svEl.classList.add('on');
-  ST.service=it.service;
 
   // Platforms (multi-select)
   ST.platforms=[...(it.platforms||[])];
@@ -1589,9 +1614,8 @@ function copyQ(){
   lines.push(`Date: ${new Date().toLocaleDateString('en-AU')}`,'─'.repeat(52));
   ST.items.forEach((it,i)=>{
     const c=it.currency;
-    lines.push(`\n${i+1}. ${it.name}`);
-    if(it.desc)lines.push(`   ${it.desc}`);
-    lines.push(`   ${SEC[it.sector]} · ${SVC[it.service]}${it.platforms&&it.platforms.length?' · '+(it.platforms.map(p=>PLAT[p]).join(' + ')):''}`+`${it.delivery?' · '+DELV[it.delivery]:''}`);
+    lines.push(`\n${i+1}. ${SVC[it.service]}${it.platforms&&it.platforms.length?' ('+it.platforms.map(p=>PLAT[p]).join(' + ')+')':''}`);
+    lines.push(`   ${SEC[it.sector]} · ${DUR[it.duration]} × ${it.qty}${it.delivery?' · '+DELV[it.delivery]:''}`);
     lines.push(`   ${DUR[it.duration]} × ${it.qty}   →   ${fmt(it.baseDisp,c)}/unit`);
     if(it.resellerOn)lines.push(`   Partner −${it.rPct}%: −${fmt(it.resellerCut,c)} (partner receives ${fmt(it.resellerCut,c)})`);
     lines.push(`   Total: ${fmt(it.clientTotal,c)}${c!=='NZD'?' (≈ '+fmt(it.clientNZD,'NZD')+' NZD)':''}`);
@@ -1649,10 +1673,11 @@ function buildQWILRTable(){
   const tbody=document.getElementById('qwilrTableBody');
   tbody.innerHTML=ST.items.map((it,i)=>{
     const c=it.currency;
+    const itPlatStr=(it.platforms&&it.platforms.length)?it.platforms.map(p=>PLAT[p]).join(' + '):'';
     const baseRow=`
       <tr>
-        <td><div class="qi-preview-name">${it.name}</div></td>
-        <td><div class="qi-preview-desc">${it.desc||(SVC[it.service]+(it.platforms&&it.platforms.length?' · '+(it.platforms.map(p=>PLAT[p]).join(' + ')):''))+' · '+DUR[it.duration]+(it.delivery?' · '+DELV[it.delivery]:'')}</div></td>
+        <td><div class="qi-preview-name">${SVC[it.service]}</div>${itPlatStr?`<div class="qi-preview-desc">${itPlatStr}</div>`:''}</td>
+        <td><div class="qi-preview-desc">${SEC[it.sector]} · ${DUR[it.duration]}${it.delivery?' · '+DELV[it.delivery]:''}</div></td>
         <td>${it.qty}</td>
         <td>${fmt(it.baseDisp,c)}</td>
         <td>${fmt(it.delivTotal+it.consultDisp,c)}</td>
@@ -1717,7 +1742,8 @@ function copyQWILR(){
 
   ST.items.forEach(it=>{
     const c=it.currency;
-    lines.push([it.name, it.desc||SVC[it.service], it.qty, fmt(it.baseDisp,c), fmt(it.delivTotal+it.consultDisp,c)].join('\t'));
+    const qPlatStr=(it.platforms&&it.platforms.length)?it.platforms.map(p=>PLAT[p]).join(' + '):'';
+    lines.push([SVC[it.service]+(qPlatStr?' ('+qPlatStr+')':''), SEC[it.sector]+' · '+DUR[it.duration]+(it.delivery?' · '+DELV[it.delivery]:''), it.qty, fmt(it.baseDisp,c), fmt(it.delivTotal+it.consultDisp,c)].join('\t'));
     // Note: consulting premium is internal — baked into line total, not shown to client
     if(it.resellerOn)
       lines.push([`Channel Partner Discount`,`−${it.rPct}% partner/referral rate`,1,`−${fmt(it.resellerCut,c)}`,`−${fmt(it.resellerCut,c)}`].join('\t'));
@@ -1741,6 +1767,7 @@ function resetAll(){
   if(!confirm('Reset everything?'))return;
   ST={sector:null,service:null,platforms:[],delivery:null,duration:null,consultOn:false,cQty:1,cUnit:'days',resellerOn:false,rPct:15,vipOn:false,vipPct:15,vipLabel:'VIP Pricing',qty:1,currency:ST.currency,gst:false,customGSTrate:10,items:[]};
   document.querySelectorAll('.sec').forEach(c=>c.className='sec');
+  document.querySelectorAll('.svc-card').forEach(c=>c.classList.remove('on'));
   document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
   document.querySelectorAll('.pchip').forEach(c=>c.classList.remove('on'));
   document.querySelectorAll('.rt-row').forEach(r=>r.classList.remove('on','disabled'));
@@ -1759,8 +1786,6 @@ function resetAll(){
   document.getElementById('rVal').textContent='15%';
   document.getElementById('cu_d').classList.add('on');
   document.getElementById('cu_h').classList.remove('on');
-  document.getElementById('iName').value='';
-  document.getElementById('iDesc').value='';
   document.getElementById('qtyLbl').textContent='sessions / units';
   // Reset GST toggle UI
   const gstTog=document.getElementById('gstTog');
