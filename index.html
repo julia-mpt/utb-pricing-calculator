@@ -1197,30 +1197,32 @@ function onSlider(){
 function calcItem(s){
   const sector=s.sector,dur=s.duration,curr=s.currency||ST.currency;
   if(!sector||!dur)return null;
-  const baseNZD=RATES[sector][dur];
-  const baseDisp=nzdTo(baseNZD,curr);
-  const delivTotal=baseDisp*s.qty;
 
-  // Consulting
+  // Rates are the SAME numbers regardless of currency.
+  // $2,500 NZD = $2,500 AUD = $2,500 USD — same figure, different label.
+  // FX is only used at the end to show the NZD equivalent for internal reference.
+  const baseRate=RATES[sector][dur];
+  const delivTotal=baseRate*s.qty;
+
+  // Consulting — internal only, baked into total
   let consultDisp=0;
   if(s.consultOn&&s.cQty>0){
-    let cNZD;
-    if(s.cUnit==='days'){cNZD=RATES[sector][dur]*s.cQty*CONSULT_PREMIUM;}
-    else{cNZD=RATES[sector].hourly*s.cQty*CONSULT_PREMIUM;}
-    consultDisp=nzdTo(cNZD,curr);
+    if(s.cUnit==='days'){consultDisp=RATES[sector][dur]*s.cQty*CONSULT_PREMIUM;}
+    else{consultDisp=RATES[sector].hourly*s.cQty*CONSULT_PREMIUM;}
   }
 
   const preResell=delivTotal+consultDisp;
   const resellerCut=s.resellerOn?preResell*(s.rPct/100):0;
   const afterResell=preResell-resellerCut;
-
-  // VIP discount applied after reseller cut
   const vipPct=(s.vipOn&&s.vipPct>0)?s.vipPct/100:0;
   const vipSaving=afterResell*vipPct;
   const clientTotal=afterResell-vipSaving;
-  const clientNZD=toNZD(clientTotal,curr);
 
-  return{baseDisp,delivTotal,consultDisp,preResell,resellerCut,afterResell,vipSaving,clientTotal,clientNZD,curr};
+  // NZD equivalent for internal business lens only
+  // NZD stays as-is; AUD and USD are converted using live FX
+  const clientNZD=curr==='NZD'?clientTotal:clientTotal/FX[curr];
+
+  return{baseRate,delivTotal,consultDisp,preResell,resellerCut,afterResell,vipSaving,clientTotal,clientNZD,curr};
 }
 
 // ─── RECALC (live preview) ───
@@ -1243,8 +1245,8 @@ function recalc(){
   }
 
   document.getElementById('pAmt').textContent=fmt(p.clientTotal,curr);
-  document.getElementById('unitBadge').textContent=`${fmt(p.baseDisp,curr)}/unit`;
-  document.getElementById('pNZD').textContent=curr!=='NZD'?`≈ ${fmt(p.clientNZD,'NZD')} NZD`:'';
+  document.getElementById('unitBadge').textContent=`${fmt(p.baseRate,curr)}/unit`;
+  document.getElementById('pNZD').textContent=''; // NZD equiv shown at quote total only
   document.getElementById('consultPreviewAmt').textContent=p.consultDisp>0?fmt(p.consultDisp,curr):'None';
   document.getElementById('partnerCutAmt').textContent=p.resellerCut>0?fmt(p.resellerCut,curr):'—';
   const vipLbl=document.getElementById('vipName').value||'VIP Pricing';
@@ -1299,7 +1301,7 @@ function addItem(){
     resellerOn:ST.resellerOn,rPct:ST.rPct,
     vipOn:ST.vipOn,vipPct:ST.vipPct,vipLabel:document.getElementById('vipName').value||'VIP Pricing',
     qty:ST.qty,currency:ST.currency,
-    baseDisp:p.baseDisp,delivTotal:p.delivTotal,
+    baseRate:p.baseRate,delivTotal:p.delivTotal,
     consultDisp:p.consultDisp,resellerCut:p.resellerCut,
     vipSaving:p.vipSaving,
     clientTotal:p.clientTotal,clientNZD:p.clientNZD,
@@ -1342,9 +1344,7 @@ function renderQItem(it){
   const platStr=(it.platforms&&it.platforms.length)
     ? it.platforms.map(p=>PLAT[p]).join(' + ')
     : '';
-  const unitLine=`${fmt(it.baseDisp,c)}/unit × ${it.qty}${it.consultDisp>0?' <span style="opacity:.6;font-size:10px">(incl. prep)</span>':''}`;
-
-  const nzdNote=c!=='NZD'?`<div class="qi-nzd">≈ ${fmt(it.clientNZD,'NZD')} NZD</div>`:'';
+  const unitLine=`${fmt(it.baseRate||it.baseDisp,c)}/unit × ${it.qty}${it.consultDisp>0?' <span style="opacity:.6;font-size:10px">(incl. prep)</span>':''}`;
 
   return`<div class="qi-card ${sec}" id="qi_${it.id}">
     <div class="qi-top">
@@ -1355,7 +1355,6 @@ function renderQItem(it){
       <div style="display:flex;align-items:flex-start;gap:6px;flex-shrink:0;margin-left:8px">
         <div class="qi-price-col" style="text-align:right">
           <div class="qi-total">${fmt(it.clientTotal,c)}</div>
-          ${nzdNote}
         </div>
         <div class="qi-actions">
           <button class="qi-edit" title="Edit this item" onclick="editItem(${it.id})">✏️</button>
@@ -1458,50 +1457,42 @@ function editItem(id){
 function updTotals(){
   if(!ST.items.length)return;
   const currs=[...new Set(ST.items.map(i=>i.currency))];
-  const mixed=currs.length>1;
-  const dc=mixed?'NZD':currs[0];
-  const isNZD=dc==='NZD';
+  const dc=currs[0]||ST.currency;
 
-  // Sub and grand in display currency
-  const sub=mixed
-    ?ST.items.reduce((a,i)=>a+i.clientNZD,0)
-    :ST.items.reduce((a,i)=>a+i.clientTotal,0);
-
-  // Smart GST rate
+  const sub=ST.items.reduce((a,i)=>a+i.clientTotal,0);
   const gstRate=getGSTrate(dc)/100;
   const gst=ST.gst?sub*gstRate:0;
   const grand=sub+gst;
-
-  // Always compute NZD equivalent for non-NZD quotes
-  const subNZD=mixed?sub:ST.items.reduce((a,i)=>a+i.clientNZD,0);
-  const grandNZD=ST.gst?subNZD*(1+gstRate):subNZD;
 
   document.getElementById('qSub').textContent=fmt(sub,dc);
   document.getElementById('gstAmt').textContent=fmt(gst,dc);
   document.getElementById('qGrand').textContent=fmt(grand,dc);
   document.getElementById('gstRow').style.display=ST.gst?'flex':'none';
-
-  // Update GST UI labels
   updGSTui();
 
-  // NZD note — always show when quoting in foreign currency
+  // Always show the other currency equivalents for internal business lens
+  // Quoting in AUD → show NZD + USD. In NZD → show AUD + USD. In USD → show NZD + AUD.
   const noteEl=document.getElementById('qNote');
-  if(mixed){
-    noteEl.innerHTML=`⚠ Mixed currencies — totals shown in NZD`;
-  } else if(!isNZD){
-    const rate=(1/FX[dc]).toFixed(4);
-    noteEl.innerHTML=
-      `<span style="color:var(--sky2);font-style:normal;font-weight:600">≈ ${fmt(grandNZD,'NZD')} NZD</span>`+
-      `&nbsp; (1 ${dc} = ${rate} NZD &nbsp;·&nbsp; ${FX_STATUS})`;
-  } else {
-    noteEl.innerHTML='';
-  }
+  const others={NZD:['AUD','USD'],AUD:['NZD','USD'],USD:['NZD','AUD']};
+  const show=others[dc]||['NZD','USD'];
 
-  // Also update the grand total label when in foreign currency
-  const grandEl=document.getElementById('qGrand');
-  if(!isNZD&&!mixed){
-    grandEl.innerHTML=`${fmt(grand,dc)} <span style="font-size:13px;font-weight:500;color:var(--gray);margin-left:4px">${dc}</span>`;
-  }
+  const convRows=show.map(toCurr=>{
+    const rate=dc===toCurr?1:(dc==='NZD'?FX[toCurr]:toCurr==='NZD'?1/FX[dc]:FX[toCurr]/FX[dc]);
+    const converted=grand*rate;
+    const rateLabel=dc==='NZD'
+      ?`1 NZD = ${(FX[toCurr]).toFixed(4)} ${toCurr}`
+      :toCurr==='NZD'
+        ?`1 ${dc} = ${(1/FX[dc]).toFixed(4)} NZD`
+        :`via NZD rates`;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-top:1px solid rgba(39,181,232,.1)">
+      <span style="font-size:11px;color:var(--gray)">${toCurr} equivalent &nbsp;<span style="font-size:10px;opacity:.7">${rateLabel}</span></span>
+      <span style="font-size:14px;font-weight:700;color:var(--sky2)">${fmt(converted,toCurr)}</span>
+    </div>`;
+  }).join('');
+
+  noteEl.innerHTML=convRows
+    ?`<div style="margin-top:2px;padding:6px 0 2px">${convRows}<div style="font-size:10px;color:var(--gray);margin-top:6px">${FX_STATUS} · for internal reference only</div></div>`
+    :'';
 }
 
 // ─── GST HELPERS ───
@@ -1563,12 +1554,10 @@ function updRateTable(){
   const curr=ST.currency;
   const rows=[['hourly','hourly'],['halfday','halfday'],['dnt','day_no_travel'],['dt','day_travel']];
   rows.forEach(([id,key])=>{
-    const e=nzdTo(RATES.edu[key],curr);
-    const b=nzdTo(RATES.bus[key],curr);
     const ee=document.getElementById(`dp_${id}_edu`);
     const be=document.getElementById(`dp_${id}_bus`);
-    if(ee)ee.textContent=fmt(e,curr);
-    if(be)be.textContent=fmt(b,curr);
+    if(ee)ee.textContent=fmt(RATES.edu[key],curr);
+    if(be)be.textContent=fmt(RATES.bus[key],curr);
   });
 }
 
@@ -1576,11 +1565,9 @@ function renderRateCard(){
   const curr=ST.currency;
   document.getElementById('rcCurrLbl').textContent=curr;
   const rows=[['Hourly','hourly'],['Half Day','halfday'],['Full Day — No Travel','day_no_travel'],['Full Day — With Travel','day_travel']];
-  document.getElementById('rcBody').innerHTML=rows.map(([lbl,key])=>{
-    const e=nzdTo(RATES.edu[key],curr);
-    const b=nzdTo(RATES.bus[key],curr);
-    return`<tr><td class="lbl">${lbl}</td><td class="e">${fmt(e,curr)}</td><td class="b">${fmt(b,curr)}</td></tr>`;
-  }).join('');
+  document.getElementById('rcBody').innerHTML=rows.map(([lbl,key])=>
+    `<tr><td class="lbl">${lbl}</td><td class="e">${fmt(RATES.edu[key],curr)}</td><td class="b">${fmt(RATES.bus[key],curr)}</td></tr>`
+  ).join('');
 }
 
 // ─── CURRENCY CHANGE ───
@@ -1616,15 +1603,22 @@ function copyQ(){
     const c=it.currency;
     lines.push(`\n${i+1}. ${SVC[it.service]}${it.platforms&&it.platforms.length?' ('+it.platforms.map(p=>PLAT[p]).join(' + ')+')':''}`);
     lines.push(`   ${SEC[it.sector]} · ${DUR[it.duration]} × ${it.qty}${it.delivery?' · '+DELV[it.delivery]:''}`);
-    lines.push(`   ${DUR[it.duration]} × ${it.qty}   →   ${fmt(it.baseDisp,c)}/unit`);
+    lines.push(`   ${DUR[it.duration]} × ${it.qty}   →   ${fmt(it.baseRate||it.baseDisp,c)}/unit`);
     if(it.resellerOn)lines.push(`   Partner −${it.rPct}%: −${fmt(it.resellerCut,c)} (partner receives ${fmt(it.resellerCut,c)})`);
     lines.push(`   Total: ${fmt(it.clientTotal,c)}${c!=='NZD'?' (≈ '+fmt(it.clientNZD,'NZD')+' NZD)':''}`);
   });
-  const sub=ST.items.reduce((a,i)=>a+i.clientNZD,0);
-  const dc=[...new Set(ST.items.map(i=>i.currency))].length>1?'NZD':ST.items[0].currency;
-  const dispSub=dc==='NZD'?sub:ST.items.reduce((a,i)=>a+i.clientTotal,0);
+  const sub=ST.items.reduce((a,i)=>a+i.clientTotal,0);
+  const dc=ST.items[0]?.currency||'NZD';
+  const grand=ST.gst?sub*(1+getGSTrate(dc)/100):sub;
+  const toNZD=dc==='NZD'?grand:grand/FX[dc];
+  const toAUD=dc==='AUD'?grand:dc==='NZD'?grand*FX['AUD']:grand/FX[dc]*FX['AUD'];
+  const toUSD=dc==='USD'?grand:dc==='NZD'?grand*FX['USD']:grand/FX[dc]*FX['USD'];
   lines.push('\n'+'─'.repeat(52));
-  lines.push(`TOTAL: ${fmt(ST.gst?dispSub*(1+getGSTrate(dc)/100):dispSub,dc)} ${dc}${ST.gst?' (incl. tax)':' (excl. tax)'}`);
+  lines.push(`TOTAL: ${fmt(grand,dc)} ${dc}${ST.gst?' (incl. tax)':' (excl. tax)'}`);
+  if(dc!=='NZD') lines.push(`  NZD equivalent: ${fmt(toNZD,'NZD')}`);
+  if(dc!=='AUD') lines.push(`  AUD equivalent: ${fmt(toAUD,'AUD')}`);
+  if(dc!=='USD') lines.push(`  USD equivalent: ${fmt(toUSD,'USD')}`);
+  lines.push(`  (${FX_STATUS})`);
   navigator.clipboard.writeText(lines.join('\n')).then(()=>toast('✓ Copied')).catch(()=>toast('⚠ Copy failed'));
 }
 
@@ -1679,7 +1673,7 @@ function buildQWILRTable(){
         <td><div class="qi-preview-name">${SVC[it.service]}</div>${itPlatStr?`<div class="qi-preview-desc">${itPlatStr}</div>`:''}</td>
         <td><div class="qi-preview-desc">${SEC[it.sector]} · ${DUR[it.duration]}${it.delivery?' · '+DELV[it.delivery]:''}</div></td>
         <td>${it.qty}</td>
-        <td>${fmt(it.baseDisp,c)}</td>
+        <td>${fmt(it.baseRate||it.baseDisp,c)}</td>
         <td>${fmt(it.delivTotal+it.consultDisp,c)}</td>
       </tr>`;
 
@@ -1708,14 +1702,21 @@ function buildQWILRTable(){
   }).join('');
 
   // Totals
-  const sub=mixed?ST.items.reduce((a,i)=>a+i.clientNZD,0):ST.items.reduce((a,i)=>a+i.clientTotal,0);
-  const subNZD=ST.items.reduce((a,i)=>a+i.clientNZD,0);
+  const sub=ST.items.reduce((a,i)=>a+i.clientTotal,0);
   const gstRate=getGSTrate(dc)/100;
   const gst=ST.gst?sub*gstRate:0;
   const grand=sub+gst;
-  const grandNZD=ST.gst?subNZD*(1+gstRate):subNZD;
   const gstLabel=dc==='NZD'?'GST (15% NZ)':dc==='AUD'?'GST (10% AU)':`Tax (${ST.customGSTrate||10}%)`;
-  const nzdNote=dc!=='NZD'?`<div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:6px">≈ ${fmt(grandNZD,'NZD')} NZD (at ${FX_STATUS})</div>`:'';
+
+  // Build currency equivalent rows
+  const others={NZD:['AUD','USD'],AUD:['NZD','USD'],USD:['NZD','AUD']};
+  const equivCurrs=others[dc]||['NZD','USD'];
+  const equivRows=equivCurrs.map(toCurr=>{
+    const rate=dc==='NZD'?FX[toCurr]:toCurr==='NZD'?1/FX[dc]:FX[toCurr]/FX[dc];
+    return`<div style="display:flex;justify-content:space-between;font-size:11px;color:rgba(255,255,255,.55);margin-top:5px">
+      <span>${toCurr} equivalent</span><span style="color:rgba(255,255,255,.8);font-weight:600">${fmt(grand*rate,toCurr)}</span>
+    </div>`;
+  }).join('');
 
   document.getElementById('qwilrTotals').innerHTML=`
     <div style="display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,.6);margin-bottom:5px">
@@ -1725,8 +1726,8 @@ function buildQWILRTable(){
     <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:800;color:var(--sky);padding-top:8px;border-top:1px solid rgba(255,255,255,.12)">
       <span>TOTAL ${dc}</span><span>${fmt(grand,dc)}</span>
     </div>
-    ${nzdNote}
-    <div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:8px">${ST.gst?'Includes GST':'Excludes GST'} · ${FX_STATUS}</div>
+    ${equivRows}
+    <div style="font-size:10px;color:rgba(255,255,255,.3);margin-top:8px">${FX_STATUS} · equivalents for internal reference only</div>
   `;
 }
 
@@ -1743,7 +1744,7 @@ function copyQWILR(){
   ST.items.forEach(it=>{
     const c=it.currency;
     const qPlatStr=(it.platforms&&it.platforms.length)?it.platforms.map(p=>PLAT[p]).join(' + '):'';
-    lines.push([SVC[it.service]+(qPlatStr?' ('+qPlatStr+')':''), SEC[it.sector]+' · '+DUR[it.duration]+(it.delivery?' · '+DELV[it.delivery]:''), it.qty, fmt(it.baseDisp,c), fmt(it.delivTotal+it.consultDisp,c)].join('\t'));
+    lines.push([SVC[it.service]+(qPlatStr?' ('+qPlatStr+')':''), SEC[it.sector]+' · '+DUR[it.duration]+(it.delivery?' · '+DELV[it.delivery]:''), it.qty, fmt(it.baseRate||it.baseDisp,c), fmt(it.delivTotal+it.consultDisp,c)].join('\t'));
     // Note: consulting premium is internal — baked into line total, not shown to client
     if(it.resellerOn)
       lines.push([`Channel Partner Discount`,`−${it.rPct}% partner/referral rate`,1,`−${fmt(it.resellerCut,c)}`,`−${fmt(it.resellerCut,c)}`].join('\t'));
@@ -1752,10 +1753,15 @@ function copyQWILR(){
   });
 
   const sub=ST.items.reduce((a,i)=>a+i.clientTotal,0);
-  const subNZD=ST.items.reduce((a,i)=>a+i.clientNZD,0);
+  const grandNZD=dc==='NZD'?sub:sub/FX[dc];
+  const grandAUD=dc==='AUD'?sub:dc==='NZD'?sub*FX['AUD']:sub/FX[dc]*FX['AUD'];
+  const grandUSD=dc==='USD'?sub:dc==='NZD'?sub*FX['USD']:sub/FX[dc]*FX['USD'];
   lines.push('─'.repeat(80));
-  lines.push(`\tTOTAL ${dc}\t\t\t${fmt(sub,dc)}`);
-  if(dc!=='NZD') lines.push(`\t≈ NZD equivalent\t\t\t${fmt(subNZD,'NZD')}`);
+  lines.push(`TOTAL ${dc}: ${fmt(sub,dc)}${ST.gst?' (incl. tax)':' (excl. tax)'}`);
+  if(dc!=='NZD') lines.push(`  NZD equivalent: ${fmt(grandNZD,'NZD')}`);
+  if(dc!=='AUD') lines.push(`  AUD equivalent: ${fmt(grandAUD,'AUD')}`);
+  if(dc!=='USD') lines.push(`  USD equivalent: ${fmt(grandUSD,'USD')}`);
+  lines.push(`  (${FX_STATUS} — for internal reference only)`);
 
   navigator.clipboard.writeText(lines.join('\n'))
     .then(()=>toast('✓ Copied — paste into QWILR or a spreadsheet'))
