@@ -135,6 +135,8 @@ textarea.ti{resize:none;height:68px;line-height:1.55}
 .chip:hover{border-color:var(--border2);background:var(--off)}
 .chip.on{border-color:var(--sky);background:rgba(39,181,232,.07);color:var(--sky2);font-weight:600}
 
+@keyframes fadeSlideIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+
 /* ── SERVICE CARDS (the 3 products) ── */
 .svc-card{
   display:flex;align-items:center;gap:12px;
@@ -311,6 +313,7 @@ input[type=range]::-webkit-slider-thumb{
 .qi-name{font-size:13px;font-weight:700;color:var(--navy);line-height:1.3;flex:1;margin-right:10px}
 .qi-price-col{text-align:right;flex-shrink:0}
 .qi-total{font-size:15px;font-weight:700;color:var(--navy)}
+.qi-notes{font-size:11.5px;color:var(--gray2);font-style:italic;margin-top:6px;padding-top:6px;border-top:1px solid var(--border);line-height:1.5}
 .qi-unit{font-size:10px;color:var(--gray);margin-top:1px}
 .qi-nzd{font-size:10px;color:var(--gray);font-style:italic}
 
@@ -604,6 +607,21 @@ input[type=range]::-webkit-slider-thumb{
             </div>
           </div>
         </div>
+
+        <!-- Notes panel — slides in when a product is selected -->
+        <div id="svcNotesWrap" style="display:none;margin-top:10px">
+          <div style="background:var(--off2);border:1.5px solid var(--border);border-radius:var(--r);overflow:hidden">
+            <div style="padding:9px 14px 7px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)">
+              <span style="font-size:14px">📝</span>
+              <span style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gray)" id="svcNotesLabel">Notes</span>
+            </div>
+            <textarea class="ti" id="lineNotes"
+              placeholder="Add context, assumptions, scope… e.g. 3 sessions for 45 staff, travel to Nowra confirmed, based on existing M365 environment"
+              style="border:none;border-radius:0;background:#fff;height:80px;font-size:12.5px;padding:10px 14px;resize:vertical;width:100%"
+            ></textarea>
+          </div>
+        </div>
+
       </div>
 
       <!-- SECTOR -->
@@ -1100,10 +1118,28 @@ function setSector(s,el){
 }
 
 // ─── SERVICE SELECTION ───
+const SVC_NOTES_PLACEHOLDER={
+  audit:'e.g. Scope covers ~150 SharePoint sites, 3 stakeholder groups, 4-week timeline…',
+  infra:'e.g. Build Teams channel structure for Finance division, permissions to be confirmed with IT…',
+  training:'e.g. 3 × 90-min sessions, 45 staff across 2 campuses, Google Workspace focus…',
+};
+
 function selectService(val,el){
   ST.service=val;
   document.querySelectorAll('.svc-card').forEach(c=>c.classList.remove('on'));
   el.classList.add('on');
+
+  // Show notes panel with product-specific context
+  const wrap=document.getElementById('svcNotesWrap');
+  const lbl=document.getElementById('svcNotesLabel');
+  const ta=document.getElementById('lineNotes');
+  wrap.style.display='block';
+  wrap.style.animation='none';
+  wrap.offsetHeight; // reflow to restart animation
+  wrap.style.animation='fadeSlideIn .18s ease';
+  lbl.textContent=`Notes — ${SVC[val]}`;
+  ta.placeholder=SVC_NOTES_PLACEHOLDER[val]||'Add context, assumptions, scope details…';
+
   recalc();
 }
 
@@ -1305,10 +1341,12 @@ function addItem(){
     consultDisp:p.consultDisp,resellerCut:p.resellerCut,
     vipSaving:p.vipSaving,
     clientTotal:p.clientTotal,clientNZD:p.clientNZD,
+    notes:document.getElementById('lineNotes').value.trim(),
   };
   ST.items.push(item);
   renderQ();
   toast('✓ Line item added');
+  document.getElementById('lineNotes').value='';
 }
 
 // ─── RENDER QUOTE ───
@@ -1363,6 +1401,7 @@ function renderQItem(it){
       </div>
     </div>
     <div class="tags">${tags}</div>
+    ${it.notes?`<div class="qi-notes">${it.notes}</div>`:''}
   </div>`;
 }
 
@@ -1383,6 +1422,13 @@ function editItem(id){
   const svEl=document.querySelector(`.svc-card[data-sv="${it.service}"]`);
   if(svEl)svEl.classList.add('on');
   ST.service=it.service;
+
+  // Show notes panel with restored content
+  const notesWrap=document.getElementById('svcNotesWrap');
+  notesWrap.style.display='block';
+  document.getElementById('svcNotesLabel').textContent=`Notes — ${SVC[it.service]}`;
+  document.getElementById('lineNotes').placeholder=SVC_NOTES_PLACEHOLDER[it.service]||'Add context…';
+  document.getElementById('lineNotes').value=it.notes||'';
 
   // Sector
   document.querySelectorAll('.sec').forEach(c=>c.className='sec');
@@ -1604,6 +1650,7 @@ function copyQ(){
     lines.push(`\n${i+1}. ${SVC[it.service]}${it.platforms&&it.platforms.length?' ('+it.platforms.map(p=>PLAT[p]).join(' + ')+')':''}`);
     lines.push(`   ${SEC[it.sector]} · ${DUR[it.duration]} × ${it.qty}${it.delivery?' · '+DELV[it.delivery]:''}`);
     lines.push(`   ${DUR[it.duration]} × ${it.qty}   →   ${fmt(it.baseRate||it.baseDisp,c)}/unit`);
+    if(it.notes) lines.push(`   Notes: ${it.notes}`);
     if(it.resellerOn)lines.push(`   Partner −${it.rPct}%: −${fmt(it.resellerCut,c)} (partner receives ${fmt(it.resellerCut,c)})`);
     lines.push(`   Total: ${fmt(it.clientTotal,c)}${c!=='NZD'?' (≈ '+fmt(it.clientNZD,'NZD')+' NZD)':''}`);
   });
@@ -1671,7 +1718,7 @@ function buildQWILRTable(){
     const baseRow=`
       <tr>
         <td><div class="qi-preview-name">${SVC[it.service]}</div>${itPlatStr?`<div class="qi-preview-desc">${itPlatStr}</div>`:''}</td>
-        <td><div class="qi-preview-desc">${SEC[it.sector]} · ${DUR[it.duration]}${it.delivery?' · '+DELV[it.delivery]:''}</div></td>
+        <td><div class="qi-preview-desc">${SEC[it.sector]} · ${DUR[it.duration]}${it.delivery?' · '+DELV[it.delivery]:''}${it.notes?'<br><em>'+it.notes+'</em>':''}</div></td>
         <td>${it.qty}</td>
         <td>${fmt(it.baseRate||it.baseDisp,c)}</td>
         <td>${fmt(it.delivTotal+it.consultDisp,c)}</td>
@@ -1787,6 +1834,8 @@ function resetAll(){
   document.getElementById('vipName').value='VIP Pricing';
   document.querySelectorAll('.vpc').forEach(c=>c.classList.toggle('on',c.textContent==='15%'));
   document.getElementById('mainQty').value=1;
+  document.getElementById('lineNotes').value='';
+  document.getElementById('svcNotesWrap').style.display='none';
   document.getElementById('cQty').value=1;
   document.getElementById('rSlider').value=15;
   document.getElementById('rVal').textContent='15%';
